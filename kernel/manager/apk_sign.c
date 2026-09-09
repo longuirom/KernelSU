@@ -367,7 +367,7 @@ bool is_manager_apk(char *path)
 		return true;
 
 	// Custom
-	if (check_v2_signature(path, 0x375, "4359c171f32543394cbc23ef908c4bb94cad7c8087002ba164c8230948c21549"))
+	if (check_v2_signature(path, 0x363, "4359c171f32543394cbc23ef908c4bb94cad7c8087002ba164c8230948c21549"))
 		return true;
 
 	return false;
