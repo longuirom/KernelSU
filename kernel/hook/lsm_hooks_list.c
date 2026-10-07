@@ -80,6 +80,19 @@ static __nocfi int ksu_setprocattr_new(const char *name, void *value, size_t siz
 	return ((typeof(ksu_setprocattr_new) *)setprocattr_fn)(name, value, size);
 }
 
+static __nocfi int ksu_setprocattr_new2(const char *lsm,
+					const char *name,
+					void *value,
+					size_t size)
+{
+	assume(!!setprocattr_fn);
+
+	ksu_hide_setprocattr_inline(name, value, size);
+
+	return ((int (*)(const char *, const char *, void *, size_t))
+		setprocattr_fn)(lsm, name, value, size);
+}
+
 static __nocfi int ksu_setprocattr_old(struct task_struct *p, char *name, void *value, size_t size)
 {
 	assume(!!setprocattr_fn);
@@ -88,36 +101,8 @@ static __nocfi int ksu_setprocattr_old(struct task_struct *p, char *name, void *
 	return ((typeof(ksu_setprocattr_old) *)setprocattr_fn)(p, name, value, size);
 }
 
-#define SETPROCATTR_TYPE_old	struct task_struct *, char *, void *, size_t
-#define SETPROCATTR_TYPE_new1	const char *, void *, size_t
-#define SETPROCATTR_TYPE_new2	const char *lsm, const char *, void *, size_t
-
-/**
- * the pragma is to workaround GCC 4.9's broken designated initializer.
- * - avoid initializing it casted.
- * e.g. (void *)ksu_setprocattr_old, (void *)ksu_setprocattr_new
- */
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wincompatible-pointer-types"
-
-#if 0 // small demo of __builtin_choose_expr vs C11 _Generic
-#define OVERLOAD_SETPROCATTR(fn) __builtin_choose_expr(					\
-        __builtin_types_compatible_p(typeof(fn), int (*)(SETPROCATTR_TYPE_old)),	\
-        ksu_setprocattr_old,								\
-        ksu_setprocattr_new								\
-)
-#else
-#define OVERLOAD_SETPROCATTR(fn) _Generic(			\
-(fn),								\
-	int (*)(SETPROCATTR_TYPE_old)	:ksu_setprocattr_old,	\
-	int (*)(SETPROCATTR_TYPE_new1)	:ksu_setprocattr_new, 	\
-	int (*)(SETPROCATTR_TYPE_new2)	:ksu_setprocattr_new 	\
-)
-#endif
-
-// now choose what we have
-static typeof(security_setprocattr) *ksu_setprocattr __read_mostly = OVERLOAD_SETPROCATTR(security_setprocattr);
-#pragma GCC diagnostic pop
+static typeof(security_setprocattr) *ksu_setprocattr __read_mostly =
+	ksu_setprocattr_new2;
 #undef SETPROCATTR_TYPE_new2
 #undef SETPROCATTR_TYPE_new1
 #undef SETPROCATTR_TYPE_old
